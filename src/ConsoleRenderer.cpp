@@ -1,4 +1,5 @@
 #include "ConsoleRenderer.h"
+#include "ProcessStats.h"
 #include <iostream>
 #include <sstream>
 #include <iomanip>

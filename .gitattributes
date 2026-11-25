@@ -1,0 +1,15 @@
+# Explicit for source files
+*.cpp text eol=lf
+*.h   text eol=lf
+*.hpp text eol=lf
+*.c   text eol=lf
+*.md  text eol=lf
+CMakeLists.txt text eol=lf
+*.cmake text eol=lf
+
+# Binary files (no conversion)
+*.exe binary
+*.dll binary
+*.lib binary
+*.pdb binary
+*.obj binary
