@@ -1,5 +1,4 @@
 #include "FileObjectMap.h"
-#include <algorithm>
 
 FileObjectMap::FileObjectMap(DiagnosticCounters& diags, const std::wstring& targetNtPath)
     : diags_(diags), targetNtPath_(NormalizePath(targetNtPath)) {}
@@ -26,7 +25,7 @@ void FileObjectMap::OnName(uint64_t fileObject, const std::wstring& fileName) {
         diags_.VolumeMatchFailures.fetch_add(1, std::memory_order_relaxed);
 }
 
-bool FileObjectMap::OnReadWrite(uint64_t fileObject, uint64_t /*ioSize*/, bool /*isWrite*/, DWORD /*processId*/, FILETIME /*creationTime*/) {
+bool FileObjectMap::OnReadWrite(uint64_t fileObject, uint64_t /*ioSize*/, bool /*isWrite*/) {
     std::shared_lock lock(mutex_);
     auto it = map_.find(fileObject);
     if (it == map_.end() || !it->second.Active) {
@@ -69,8 +68,11 @@ bool FileObjectMap::Has(uint64_t fo) const {
     std::shared_lock lock(mutex_);
     return map_.count(fo) != 0;
 }
+
 bool FileObjectMap::Matches(uint64_t fo) const {
     std::shared_lock lock(mutex_);
     auto it = map_.find(fo);
     return it != map_.end() && it->second.MatchesTargetVolume;
 }
+
+

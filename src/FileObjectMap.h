@@ -1,6 +1,7 @@
 #pragma once
 #include "PathNormalizer.h"
 #include "Diagnostics.h"
+#include <windows.h>
 #include <unordered_map>
 #include <shared_mutex>
 #include <chrono>
@@ -20,12 +21,11 @@ public:
 
     void OnCreate(uint64_t fileObject, const std::wstring& openPath);
     void OnName(uint64_t fileObject, const std::wstring& fileName);
-    bool OnReadWrite(uint64_t fileObject, uint64_t ioSize, bool isWrite, DWORD processId, FILETIME creationTime);
+    bool OnReadWrite(uint64_t fileObject, uint64_t ioSize, bool isWrite);
     void OnCleanup(uint64_t fileObject);
     void OnClose(uint64_t fileObject);
     void ReapOrphans();
 
-    // For tests
     bool Has(uint64_t fo) const;
     bool Matches(uint64_t fo) const;
 
@@ -35,3 +35,5 @@ private:
     mutable std::shared_mutex mutex_;
     std::unordered_map<uint64_t, FileObjectInfo> map_;
 };
+
+

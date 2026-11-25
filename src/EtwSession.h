@@ -23,7 +23,7 @@ public:
     ULONG GetEnableFlags() const { return enableFlags_; }
 
 private:
-    static void WINAPI BufferCallback(PEVENT_TRACE_LOGFILE logfile);
+    static ULONG WINAPI BufferCallback(PEVENT_TRACE_LOGFILE logfile);
     static void WINAPI EventCallbackStatic(PEVENT_RECORD event);
 
     DiagnosticCounters& diags_;
