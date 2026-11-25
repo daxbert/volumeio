@@ -75,6 +75,12 @@ void ProcessStats::AddIO(const ProcessIdentity& id, uint64_t bytes, bool isWrite
 }
 
 std::wstring ProcessStats::ResolveName(DWORD pid) {
+    // Hard-coded well-known system processes
+    if (pid == 4)
+        return L"System";
+    if (pid == 0)
+        return L"Idle";
+
     HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
     if (!h) {
         diags_.NameResolutionFailures.fetch_add(1, std::memory_order_relaxed);

@@ -4,6 +4,7 @@
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
+#include <format>
 
 ConsoleRenderer::ConsoleRenderer() {
     console_ = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -40,6 +41,24 @@ static std::wstring PadToWidth(const std::wstring& s, size_t width) {
     return s + std::wstring(width - s.size(), L' ');
 }
 
+std::wstring ConsoleRenderer::FormatCumulative(uint64_t count) {
+    if (count < 1024)
+        return std::to_wstring(count) + L" B";
+    if (count < 1024 * 1024) {
+        std::wostringstream oss;
+        oss << std::fixed << std::setprecision(1) << (count / 1024.0) << L" KB";
+        return oss.str();
+    }
+    if (count < 1024 * 1024 * 1024) {
+        std::wostringstream oss;
+        oss << std::fixed << std::setprecision(1) << (count / (1024.0 * 1024.0)) << L" MB";
+        return oss.str();
+    }
+    std::wostringstream oss;
+    oss << std::fixed << std::setprecision(1) << (count / (1024.0 * 1024.0 * 1024.0)) << L" GB";
+    return oss.str();
+}
+
 std::wstring ConsoleRenderer::FormatRate(double bps) {
     if (bps < 1024.0)
         return std::to_wstring(static_cast<uint64_t>(bps)) + L" B/s";
@@ -72,9 +91,10 @@ void ConsoleRenderer::HandleInput() {
         ReadConsoleInputW(input, &rec, 1, &read);
         if (rec.EventType == KEY_EVENT && rec.Event.KeyEvent.bKeyDown) {
             wchar_t ch = rec.Event.KeyEvent.uChar.UnicodeChar;
-            if (ch == L'q' || ch == L'Q')
+            if (ch == L'q' || ch == L'Q') {
+                SetConsoleCursorPosition(console_, COORD{ 0, rows - 1 } );
                 quit_ = true;
-            else if (ch == L'h' || ch == L'H')
+            } else if (ch == L'h' || ch == L'H')
                 showTerminated_ = !showTerminated_;
             else if (ch == L'c' || ch == L'C')
                 cumulativeMode_ = !cumulativeMode_;
@@ -92,13 +112,48 @@ void ConsoleRenderer::HandleInput() {
     }
 }
 
+// Column widths (tune these to the largest values you expect)
+constexpr int W_PID    = 8;
+constexpr int W_NAME   = 20;
+constexpr int W_OPS    = 8;   // a bit wider than 7 for larger counters
+constexpr int W_BYTES  = 12;  // room for "1234.5 MB" etc.
+constexpr int W_TOTAL  = 12;
+
+SHORT ConsoleRenderer::WriteHeader(SHORT row, SHORT width) {
+    auto writePadded = [&](const std::wstring& line) {
+        WriteAt(0, row++, PadToWidth(line, static_cast<size_t>(width)));
+    };
+
+    std::wostringstream header;
+    header << std::left  << std::setw(W_PID)  << L"PID"    << L" "
+           << std::left  << std::setw(W_NAME) << L"Process" << L" "
+           << std::right << std::setw(W_OPS)  << (cumulativeMode_ ? L"R_Ops"  : L"R_IOPS")  << L" "
+           << std::right << std::setw(W_OPS)  << (cumulativeMode_ ? L"W_Ops"  : L"W_IOPS")  << L" "
+           << std::right << std::setw(W_BYTES)<< (cumulativeMode_ ? L"Read"   : L"Read/s")  << L" "
+           << std::right << std::setw(W_BYTES)<< (cumulativeMode_ ? L"Write"  : L"Write/s") << L" "
+           << std::right << std::setw(W_TOTAL)<< (cumulativeMode_ ? L"Total"  : L"Total/s");
+
+    writePadded(header.str());
+
+    // Separator that matches the total width
+    writePadded(std::wstring(W_PID + 1 + W_NAME + 1 + W_OPS + 1 + W_OPS + 1 +
+                             W_BYTES + 1 + W_BYTES + 1 + W_TOTAL, L'-'));
+    return row;
+}
+
+
 void ConsoleRenderer::Update(const ViewModel& view) {
     CONSOLE_SCREEN_BUFFER_INFO csbi{};
-    SHORT width = 120;
-    if (GetConsoleScreenBufferInfo(console_, &csbi))
-        width = std::min<SHORT>(csbi.dwSize.X, 120);
-
     SHORT row = 0;
+    if (GetConsoleScreenBufferInfo(console_, &csbi)) {
+        cols = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+        rows = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+        
+        if ( cols <= 0 ) cols = csbi.dwSize.X;
+        if ( rows <= 0 ) rows = csbi.dwSize.Y;
+    }
+
+    SHORT width = static_cast<SHORT>(std::min<int>(cols,200));
     auto writePadded = [&](const std::wstring& line) {
         WriteAt(0, row++, PadToWidth(line, static_cast<size_t>(width)));
     };
@@ -108,14 +163,9 @@ void ConsoleRenderer::Update(const ViewModel& view) {
     writePadded(L"Lost Buffers: " + std::to_wstring(view.Diags.LostBuffers.load()));
     writePadded(L"");
 
-    if (cumulativeMode_) {
-        writePadded(L"PID     Process             R_Ops   W_Ops   Read       Write      Total");
-    } else {
-        writePadded(L"PID     Process             R_IOPS  W_IOPS  Read/s     Write/s    Total/s");
-    }
-    writePadded(L"-------------------------------------------------------------------------");
+    row = WriteHeader(row, width);
 
-    const size_t maxRows = 50;
+    size_t maxRows = std::max<int>(1, rows - 12 );
     size_t shown = 0;
     size_t visibleCount = 0;
 
@@ -127,27 +177,27 @@ void ConsoleRenderer::Update(const ViewModel& view) {
             continue;
 
         std::wostringstream line;
-        line << std::setw(8) << r.Identity.Pid << L" "
-             << std::left << std::setw(20) << Truncate(r.ProcessName, 20) << L" ";
+        line << std::right << std::setw(W_PID)  << r.Identity.Pid << L" "
+             << std::left  << std::setw(W_NAME) << Truncate(r.ProcessName, W_NAME) << L" ";
 
         if (cumulativeMode_) {
-            line << std::setw(7) << r.ReadOpsTotal << L" "
-                 << std::setw(7) << r.WriteOpsTotal << L" "
-                 << std::setw(10) << FormatRate(static_cast<double>(r.ReadBytesTotal)) << L" "
-                 << std::setw(10) << FormatRate(static_cast<double>(r.WriteBytesTotal)) << L" "
-                 << FormatRate(static_cast<double>(r.ReadBytesTotal + r.WriteBytesTotal));
+            line << std::right << std::setw(W_OPS)   << r.ReadOpsTotal  << L" "
+                 << std::right << std::setw(W_OPS)   << r.WriteOpsTotal << L" "
+                 << std::right << std::setw(W_BYTES) << FormatCumulative(r.ReadBytesTotal)  << L" "
+                 << std::right << std::setw(W_BYTES) << FormatCumulative(r.WriteBytesTotal) << L" "
+                 << std::right << std::setw(W_TOTAL) << FormatCumulative(r.ReadBytesTotal + r.WriteBytesTotal);
         } else {
-            line << std::setw(7) << r.ReadIOPS << L" "
-                 << std::setw(7) << r.WriteIOPS << L" "
-                 << std::setw(10) << FormatRate(r.ReadPerSecond) << L" "
-                 << std::setw(10) << FormatRate(r.WritePerSecond) << L" "
-                 << FormatRate(r.ReadPerSecond + r.WritePerSecond);
+            line << std::right << std::setw(W_OPS)   << r.ReadIOPS  << L" "
+                 << std::right << std::setw(W_OPS)   << r.WriteIOPS << L" "
+                 << std::right << std::setw(W_BYTES) << FormatRate(r.ReadPerSecond)  << L" "
+                 << std::right << std::setw(W_BYTES) << FormatRate(r.WritePerSecond) << L" "
+                 << std::right << std::setw(W_TOTAL) << FormatRate(r.ReadPerSecond + r.WritePerSecond);
         }
         writePadded(line.str());
         ++shown;
     }
     for (; shown < maxRows; ++shown)
-        writePadded(L"");
+        writePadded(L"--");
 
     writePadded(L"");
     std::wostringstream footer;
@@ -155,13 +205,28 @@ void ConsoleRenderer::Update(const ViewModel& view) {
            << L" | DecodeErr: " << view.Diags.SchemaDecodeFailures.load()
            << L" | UnknownFO: " << view.Diags.UnknownFileObjects.load()
            << L" | Ev/s: " << view.EventsPerSec
-           << L" | Session: " << (view.Owned ? L"Owned" : L"Attached")
-           << L" | Terminated: " << (showTerminated_ ? L"shown" : L"hidden")
+           << L" | Session: " << (view.Owned ? L"Owned" : L"Attached");
+    writePadded(footer.str());
+    footer.str(L""); footer.clear();
+    footer << L"Terminated: " << (showTerminated_ ? L"shown" : L"hidden")
            << L" | Mode: " << (cumulativeMode_ ? L"cumulative" : L"real-time");
     writePadded(footer.str());
-    writePadded(L"Hotkeys: r Read/s  w Write/s  i IOPS  t Total/s  p PID  h Hide/Show exited  c Cumulative  q Quit");
+    footer.str(L""); footer.clear();
+    writePadded(L"Sort By: r Reads w Write i Iops t Total p PID ");
+    if ( showTerminated_ ) {
+        footer << L"Misc:    h hide exited ";
+    } else {
+        footer << L"Misc:    h show exited ";
+    }
+    if ( cumulativeMode_ ) {
+        footer << L" c Real Time    q Quit";
+    } else {
+        footer << L" c Cumulative   q Quit";
+    }
+    writePadded(footer.str());
+    footer.str(L""); footer.clear();
 
-    SetConsoleCursorPosition(console_, COORD{ 0, row });
+    SetConsoleCursorPosition(console_, COORD{ 0, 0 });
 }
 
 

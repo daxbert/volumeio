@@ -32,10 +32,14 @@ public:
 
 private:
     void WriteAt(SHORT x, SHORT y, const std::wstring& text);
+    SHORT WriteHeader(SHORT row, SHORT width);
+    std::wstring FormatCumulative(uint64_t count);
     std::wstring FormatRate(double bytesPerSec);
     std::wstring Truncate(const std::wstring& s, size_t maxChars);
 
     HANDLE console_ = INVALID_HANDLE_VALUE;
+    SHORT rows = 24;
+    SHORT cols = 80;
     bool quit_ = false;
     bool showTerminated_ = false;
     bool cumulativeMode_ = false;
