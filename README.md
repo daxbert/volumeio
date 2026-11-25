@@ -20,7 +20,7 @@ volumeio.exe c:
 ```
 
 ```console
-Volume: C:            VolumeIO v[v0.9.0-2-g649c7ef 649c7ef]
+Volume: C:            VolumeIO v[v0.9.0 3042ee2]
 Lost Events: 0
 Lost Buffers: 0
 
