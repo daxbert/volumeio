@@ -7,7 +7,23 @@
 
 ConsoleRenderer::ConsoleRenderer() {
     console_ = GetStdHandle(STD_OUTPUT_HANDLE);
-    SetConsoleMode(console_, ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT);
+
+    // Enable virtual terminal processing if available (Windows 10+)
+    DWORD mode = 0;
+    if (GetConsoleMode(console_, &mode)) {
+        SetConsoleMode(console_, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING | ENABLE_PROCESSED_OUTPUT);
+    }
+
+    // Clear the entire screen once at startup
+    CONSOLE_SCREEN_BUFFER_INFO csbi{};
+    if (GetConsoleScreenBufferInfo(console_, &csbi)) {
+        DWORD cells = csbi.dwSize.X * csbi.dwSize.Y;
+        DWORD written = 0;
+        COORD origin{ 0, 0 };
+        FillConsoleOutputCharacterW(console_, L' ', cells, origin, &written);
+        FillConsoleOutputAttribute(console_, csbi.wAttributes, cells, origin, &written);
+        SetConsoleCursorPosition(console_, origin);
+    }
 }
 
 void ConsoleRenderer::WriteAt(SHORT x, SHORT y, const std::wstring& text) {
@@ -15,6 +31,13 @@ void ConsoleRenderer::WriteAt(SHORT x, SHORT y, const std::wstring& text) {
     SetConsoleCursorPosition(console_, pos);
     DWORD written = 0;
     WriteConsoleW(console_, text.c_str(), static_cast<DWORD>(text.size()), &written, nullptr);
+}
+
+// Pad a string to a fixed width with spaces so previous longer lines are overwritten
+static std::wstring PadToWidth(const std::wstring& s, size_t width) {
+    if (s.size() >= width)
+        return s.substr(0, width);
+    return s + std::wstring(width - s.size(), L' ');
 }
 
 std::wstring ConsoleRenderer::FormatRate(double bps) {
@@ -42,14 +65,25 @@ std::wstring ConsoleRenderer::Truncate(const std::wstring& s, size_t max) {
 }
 
 void ConsoleRenderer::Update(const ViewModel& view) {
-    SHORT row = 0;
-    WriteAt(0, row++, L"Volume: " + view.Volume);
-    WriteAt(0, row++, L"Lost Events: " + std::to_wstring(view.Diags.LostEvents.load()));
-    WriteAt(0, row++, L"Lost Buffers: " + std::to_wstring(view.Diags.LostBuffers.load()));
-    row++;
+    // Determine usable width (cap at 120 so we stay readable)
+    CONSOLE_SCREEN_BUFFER_INFO csbi{};
+    SHORT width = 120;
+    if (GetConsoleScreenBufferInfo(console_, &csbi))
+        width = std::min<SHORT>(csbi.dwSize.X, 120);
 
-    WriteAt(0, row++, L"PID     Process             R_IOPS  W_IOPS  Read/s     Write/s    Total/s");
-    WriteAt(0, row++, L"-------------------------------------------------------------------------");
+    SHORT row = 0;
+
+    auto writePadded = [&](const std::wstring& line) {
+        WriteAt(0, row++, PadToWidth(line, static_cast<size_t>(width)));
+    };
+
+    writePadded(L"Volume: " + view.Volume);
+    writePadded(L"Lost Events: " + std::to_wstring(view.Diags.LostEvents.load()));
+    writePadded(L"Lost Buffers: " + std::to_wstring(view.Diags.LostBuffers.load()));
+    writePadded(L"");
+
+    writePadded(L"PID     Process             R_IOPS  W_IOPS  Read/s     Write/s    Total/s");
+    writePadded(L"-------------------------------------------------------------------------");
 
     const size_t maxRows = 50;
     for (size_t i = 0; i < view.Rows.size() && i < maxRows; ++i) {
@@ -62,20 +96,25 @@ void ConsoleRenderer::Update(const ViewModel& view) {
              << std::setw(10) << FormatRate(r.ReadPerSecond) << L" "
              << std::setw(10) << FormatRate(r.WritePerSecond) << L" "
              << FormatRate(r.ReadPerSecond + r.WritePerSecond);
-        WriteAt(0, row++, line.str());
+        writePadded(line.str());
     }
-    for (size_t i = view.Rows.size(); i < maxRows; ++i)
-        WriteAt(0, row++, std::wstring(80, L' '));
 
-    row += 2;
+    // Blank out any remaining rows that previously held data
+    for (size_t i = view.Rows.size(); i < maxRows; ++i)
+        writePadded(L"");
+
+    writePadded(L"");
     std::wostringstream footer;
     footer << L"Processes: " << view.Rows.size()
            << L" | DecodeErr: " << view.Diags.SchemaDecodeFailures.load()
            << L" | UnknownFO: " << view.Diags.UnknownFileObjects.load()
            << L" | Ev/s: " << view.EventsPerSec
            << L" | Session: " << (view.Owned ? L"Owned" : L"Attached");
-    WriteAt(0, row++, footer.str());
-    WriteAt(0, row++, L"Hotkeys: r Read/s  w Write/s  i IOPS  t Total/s  p PID  q Quit");
+    writePadded(footer.str());
+    writePadded(L"Hotkeys: r Read/s  w Write/s  i IOPS  t Total/s  p PID  q Quit");
+
+    // Park the cursor below the last line so it doesn't sit in the middle of the output
+    SetConsoleCursorPosition(console_, COORD{ 0, row });
 }
 
 void ConsoleRenderer::HandleInput() {
@@ -88,7 +127,8 @@ void ConsoleRenderer::HandleInput() {
             wchar_t ch = rec.Event.KeyEvent.uChar.UnicodeChar;
             if (ch == L'q' || ch == L'Q')
                 quit_ = true;
-            // Sort keys are accepted but sorting is currently done by Total/s in main
         }
     }
 }
+
+
