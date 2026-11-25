@@ -14,7 +14,10 @@ Real-time per-process file I/O monitor for a specific Windows volume, built on t
 - Partial console updates (no full-screen clears)
 - Diagnostic counters (lost events, decode failures, unknown FileObjects, etc.)
 
-## Sample
+## Screenview
+```shell
+volumeio.exe c:
+```
 
 ```console
 Volume: C:
