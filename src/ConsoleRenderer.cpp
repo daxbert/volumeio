@@ -112,9 +112,17 @@ void ConsoleRenderer::Update(const ViewModel& view) {
     for (; shown < maxRows; ++shown)
         writePadded(L"");
 
+    // Count only rows that will actually be shown
+    size_t visibleCount = 0;
+    for (const auto& r : view.Rows) {
+        if (!showTerminated_ && r.Terminated)
+            continue;
+        ++visibleCount;
+    }
+
     writePadded(L"");
     std::wostringstream footer;
-    footer << L"Processes: " << view.Rows.size()
+    footer << L"Processes: " << visibleCount
            << L" | DecodeErr: " << view.Diags.SchemaDecodeFailures.load()
            << L" | UnknownFO: " << view.Diags.UnknownFileObjects.load()
            << L" | Ev/s: " << view.EventsPerSec
