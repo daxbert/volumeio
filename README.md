@@ -20,41 +20,25 @@ volumeio.exe c:
 ```
 
 ```console
-Volume: C:
+Volume: C:            VolumeIO v[v0.9.0-2-g649c7ef 649c7ef]
 Lost Events: 0
 Lost Buffers: 0
 
 PID      Process                 R_Ops    W_Ops         Read        Write        Total
 --------------------------------------------------------------------------------------
-    4080 FastBootService.exe       231        0      26.6 KB          0 B      26.6 KB
-    1036 [1036]                      6        0      24.0 KB          0 B      24.0 KB
-    2396 NVDisplay.Contain...        0       68          0 B     235.2 MB     235.2 MB
-    2688 svchost.exe                 0        2          0 B      16.7 KB      16.7 KB
-    3032 svchost.exe                 9        0       1002 B          0 B       1002 B
-    3892 svchost.exe                23       15     280.0 KB      68.0 KB     348.0 KB
-    4528 SearchIndexer.exe         126        0       3.0 KB          0 B       3.0 KB
-    5100 WmiPrvSE.exe                0        0          0 B          0 B          0 B
-    8484 neuroserver.exe             0        2          0 B          2 B          2 B
-    8832 nvcontainer.exe             2        0       7.4 KB          0 B       7.4 KB
+    4080 FastBootService.exe       141        0      16.2 KB          0 B      16.2 KB
+       4 System                      3        0      36.0 KB          0 B      36.0 KB
+    2396 NVDisplay.Contain...        0       77          0 B     419.8 MB     419.8 MB
+    2688 svchost.exe                 0        1          0 B      46.3 KB      46.3 KB
+    3840 svchost.exe                12        0      28.2 KB          0 B      28.2 KB
+    3892 svchost.exe                 1       14       4.0 KB     116.0 KB     120.0 KB
+    4420 MsMpEng.exe                 1        0       4.0 KB          0 B       4.0 KB
     9148 svchost.exe                60        0       1.1 MB          0 B       1.1 MB
-    9840 explorer.exe               22        4     448.0 KB     573.2 KB    1021.2 KB
-   10360 svchost.exe                12        0       5.9 KB          0 B       5.9 KB
-   15760 GoogleDriveFS.exe          36        2     210.1 KB        137 B     210.2 KB
-   18280 SearchProtocolHos...       13        0       1.1 MB          0 B       1.1 MB
-   18528 [18528]                   198        0       4.6 KB          0 B       4.6 KB
---
---
---
---
---
---
---
---
---
---
---
---
---
+   12476 NVIDIA Overlay.exe          0        1          0 B       2.4 KB       2.4 KB
+   13296 copilotapp.exe             13        3     178.5 KB      67.0 KB     245.5 KB
+   14564 chrome.exe                  0        1          0 B     128.0 KB     128.0 KB
+   18500 vctip.exe                   4        2       8.2 KB       1.8 KB      10.0 KB
+   20904 md5sum.exe                  3        0      53.2 KB          0 B      53.2 KB
 --
 --
 --
@@ -69,7 +53,7 @@ PID      Process                 R_Ops    W_Ops         Read        Write       
 --
 --
 
-Processes: 16 | DecodeErr: 361 | UnknownFO: 25633 | Ev/s: 105 | Session: Owned
+Processes: 13 | DecodeErr: 168 | UnknownFO: 1766 | Ev/s: 566 | Session: Owned
 Terminated: shown | Mode: cumulative
 Sort By: r Reads w Write i Iops t Total p PID
 Misc:    h hide exited  c Real Time    q Quit
