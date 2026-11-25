@@ -51,15 +51,36 @@ std::optional<std::wstring> TdhUtils::GetPropertyString(PEVENT_RECORD event, PTR
     PROPERTY_DATA_DESCRIPTOR desc = MakeDesc(name);
     ULONG size = 0;
     TDHSTATUS status = TdhGetPropertySize(event, 1, context, 1, &desc, &size);
-    if (status != ERROR_SUCCESS || size == 0) return std::nullopt;
+    if (status != ERROR_SUCCESS || size == 0)
+        return std::nullopt;
 
-    std::vector<BYTE> buf(size);
+    std::vector<BYTE> buf(size + sizeof(wchar_t), 0);  // extra null safety
     status = TdhGetProperty(event, 1, context, 1, &desc, size, buf.data());
-    if (status != ERROR_SUCCESS) return std::nullopt;
+    if (status != ERROR_SUCCESS)
+        return std::nullopt;
 
-    // TDH returns null-terminated wide string for string properties
-    if (size >= sizeof(wchar_t)) {
-        return std::wstring(reinterpret_cast<const wchar_t*>(buf.data()));
+    // Prefer wide interpretation, but stop at the first null
+    const wchar_t* wide = reinterpret_cast<const wchar_t*>(buf.data());
+    size_t maxChars = size / sizeof(wchar_t);
+    size_t len = 0;
+    while (len < maxChars && wide[len] != L'\0')
+        ++len;
+
+    if (len > 0)
+        return std::wstring(wide, len);
+
+    // Fallback: treat as ANSI if the wide view was empty/garbage
+    const char* ansi = reinterpret_cast<const char*>(buf.data());
+    size_t ansiLen = 0;
+    while (ansiLen < size && ansi[ansiLen] != '\0')
+        ++ansiLen;
+    if (ansiLen > 0) {
+        int needed = MultiByteToWideChar(CP_ACP, 0, ansi, static_cast<int>(ansiLen), nullptr, 0);
+        if (needed > 0) {
+            std::wstring result(needed, L'\0');
+            MultiByteToWideChar(CP_ACP, 0, ansi, static_cast<int>(ansiLen), result.data(), needed);
+            return result;
+        }
     }
     return std::nullopt;
 }

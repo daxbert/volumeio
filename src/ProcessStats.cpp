@@ -3,6 +3,20 @@
 
 ProcessStats::ProcessStats(DiagnosticCounters& diags) : diags_(diags) {}
 
+static std::wstring CleanProcessName(const std::wstring& raw) {
+    std::wstring clean;
+    clean.reserve(raw.size());
+    for (wchar_t ch : raw) {
+        // Keep printable BMP characters; drop controls, surrogates, and private-use garbage
+        if (ch >= 32 && ch < 0xD800)
+            clean.push_back(ch);
+    }
+    // Trim trailing dots/spaces that sometimes appear from truncated buffers
+    while (!clean.empty() && (clean.back() == L'.' || clean.back() == L' '))
+        clean.pop_back();
+    return clean.empty() ? L"unknown" : clean;
+}
+
 void ProcessStats::OnProcessStart(DWORD pid, const std::wstring& imageFileName, FILETIME createTime) {
     ProcessIdentity id{pid, createTime};
     std::wstring base = imageFileName;
@@ -13,7 +27,7 @@ void ProcessStats::OnProcessStart(DWORD pid, const std::wstring& imageFileName, 
     std::unique_lock lock(mutex_);
     auto& entry = map_[id];
     entry.Identity = id;
-    entry.ProcessName = base.empty() ? L"unknown" : base;
+    entry.ProcessName = CleanProcessName(base);
     entry.Terminated = false;
     entry.NameResolutionAttempted = true;
 }
@@ -57,14 +71,17 @@ std::wstring ProcessStats::ResolveName(DWORD pid) {
         diags_.NameResolutionFailures.fetch_add(1, std::memory_order_relaxed);
         return L"[" + std::to_wstring(pid) + L"]";
     }
+
     wchar_t buf[MAX_PATH]{};
     DWORD size = MAX_PATH;
     if (QueryFullProcessImageNameW(h, 0, buf, &size)) {
         CloseHandle(h);
-        std::wstring full = buf;
+        std::wstring full(buf, size);          // size is the length without null
         auto pos = full.find_last_of(L"\\/");
-        return pos != std::wstring::npos ? full.substr(pos + 1) : full;
+        std::wstring base = (pos != std::wstring::npos) ? full.substr(pos + 1) : full;
+        return CleanProcessName(base);
     }
+
     CloseHandle(h);
     diags_.NameResolutionFailures.fetch_add(1, std::memory_order_relaxed);
     return L"[" + std::to_wstring(pid) + L"]";
