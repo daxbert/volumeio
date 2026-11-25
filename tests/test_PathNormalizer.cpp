@@ -8,7 +8,7 @@ TEST_CASE("NormalizePath basic", "[PathNormalizer]") {
     REQUIRE((p.empty() || p.back() != L'\\'));
 
     auto root = NormalizePath(L"\\Device\\HarddiskVolume7\\");
-    REQUIRE((!root.empty() && root.back() == L'\\'));
+    REQUIRE(root == L"\\DEVICE\\HARDDISKVOLUME7"); 
 }
 
 TEST_CASE("MatchesTargetVolume", "[PathNormalizer]") {
