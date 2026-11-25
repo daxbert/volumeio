@@ -16,7 +16,7 @@ void EventDispatch::OnEvent(PEVENT_RECORD event) {
     }
 
     UCHAR opcode = event->EventHeader.EventDescriptor.Opcode;
-    DWORD pid = event->EventHeader.ProcessId;
+    // DWORD pid = event->EventHeader.ProcessId;
 
     switch (opcode) {
     case 64: HandleCreate(event, info, context); break;
@@ -92,10 +92,18 @@ void EventDispatch::HandleClose(PEVENT_RECORD event, PTRACE_EVENT_INFO info, TDH
 
 void EventDispatch::HandleProcessStart(PEVENT_RECORD event, PTRACE_EVENT_INFO info, TDH_CONTEXT& ctx) {
     auto image = TdhUtils::GetPropertyString(event, info, L"ImageFileName", &ctx);
-    // CreateTime handling simplified; prefer header ProcessId
+
+    // Prefer the ProcessId property (the new process) over the header
     DWORD pid = event->EventHeader.ProcessId;
+    if (auto propPid = TdhUtils::GetPropertyUInt32(event, info, L"ProcessId", &ctx))
+        pid = *propPid;
+    else if (auto propPid2 = TdhUtils::GetPropertyUInt32(event, info, L"ProcessID", &ctx))
+        pid = *propPid2;
+
     FILETIME ct{};
-    // In full implementation extract CreateTime property
+    // Optional: also pull CreateTime if present
+    // auto createTime = TdhUtils::GetProperty... 
+
     stats_.OnProcessStart(pid, image.value_or(L""), ct);
 }
 
