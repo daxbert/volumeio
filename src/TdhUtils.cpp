@@ -46,41 +46,63 @@ std::optional<uint64_t> TdhUtils::GetPropertyUInt64(PEVENT_RECORD event, PTRACE_
     if (status != ERROR_SUCCESS) return std::nullopt;
     return value;
 }
-
-std::optional<std::wstring> TdhUtils::GetPropertyString(PEVENT_RECORD event, PTRACE_EVENT_INFO info, const wchar_t* name, TDH_CONTEXT* context) {
+std::optional<std::wstring> TdhUtils::GetPropertyString(PEVENT_RECORD event,
+                                                       PTRACE_EVENT_INFO /*info*/,
+                                                       const wchar_t* name,
+                                                       TDH_CONTEXT* context) {
     PROPERTY_DATA_DESCRIPTOR desc = MakeDesc(name);
     ULONG size = 0;
     TDHSTATUS status = TdhGetPropertySize(event, 1, context, 1, &desc, &size);
     if (status != ERROR_SUCCESS || size == 0)
         return std::nullopt;
 
-    std::vector<BYTE> buf(size + sizeof(wchar_t), 0);  // extra null safety
+    std::vector<BYTE> buf(size + 4, 0);   // extra room + guaranteed nulls
     status = TdhGetProperty(event, 1, context, 1, &desc, size, buf.data());
     if (status != ERROR_SUCCESS)
         return std::nullopt;
 
-    // Prefer wide interpretation, but stop at the first null
-    const wchar_t* wide = reinterpret_cast<const wchar_t*>(buf.data());
-    size_t maxChars = size / sizeof(wchar_t);
-    size_t len = 0;
-    while (len < maxChars && wide[len] != L'\0')
-        ++len;
-
-    if (len > 0)
-        return std::wstring(wide, len);
-
-    // Fallback: treat as ANSI if the wide view was empty/garbage
-    const char* ansi = reinterpret_cast<const char*>(buf.data());
-    size_t ansiLen = 0;
-    while (ansiLen < size && ansi[ansiLen] != '\0')
-        ++ansiLen;
-    if (ansiLen > 0) {
-        int needed = MultiByteToWideChar(CP_ACP, 0, ansi, static_cast<int>(ansiLen), nullptr, 0);
-        if (needed > 0) {
-            std::wstring result(needed, L'\0');
-            MultiByteToWideChar(CP_ACP, 0, ansi, static_cast<int>(ansiLen), result.data(), needed);
-            return result;
+    // 1. Try as wide string (most common for modern kernel events)
+    {
+        const wchar_t* wide = reinterpret_cast<const wchar_t*>(buf.data());
+        size_t maxChars = size / sizeof(wchar_t);
+        size_t len = 0;
+        while (len < maxChars && wide[len] != L'\0')
+            ++len;
+        if (len > 0 && len < 260) {                 // reasonable filename length
+            std::wstring candidate(wide, len);
+            // Accept only if it looks like a real path/name (has a dot or backslash, or is pure ASCII)
+            bool looksValid = false;
+            for (wchar_t ch : candidate) {
+                if (ch == L'\\' || ch == L'.' || (ch >= 32 && ch < 127))
+                    looksValid = true;
+                if (ch >= 0x80 && ch < 0xD800) {    // non-ASCII BMP → likely mojibake
+                    looksValid = false;
+                    break;
+                }
+            }
+            if (looksValid)
+                return candidate;
         }
     }
+
+    // 2. Fallback: treat as ANSI (common for some classic Kernel Logger properties)
+    {
+        const char* ansi = reinterpret_cast<const char*>(buf.data());
+        size_t ansiLen = 0;
+        while (ansiLen < size && ansi[ansiLen] != '\0')
+            ++ansiLen;
+        if (ansiLen > 0 && ansiLen < 260) {
+            int needed = MultiByteToWideChar(CP_ACP, 0, ansi, static_cast<int>(ansiLen), nullptr, 0);
+            if (needed > 0) {
+                std::wstring result(needed, L'\0');
+                MultiByteToWideChar(CP_ACP, 0, ansi, static_cast<int>(ansiLen), result.data(), needed);
+                return result;
+            }
+        }
+    }
+
     return std::nullopt;
 }
+
+
+

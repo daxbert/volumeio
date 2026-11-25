@@ -14,6 +14,12 @@ static std::wstring CleanProcessName(const std::wstring& raw) {
     // Trim trailing dots/spaces that sometimes appear from truncated buffers
     while (!clean.empty() && (clean.back() == L'.' || clean.back() == L' '))
         clean.pop_back();
+
+    // Replace non-ASCII characters with '#' after the above extraction
+    for (wchar_t& ch : clean) {
+        if (ch >= 0x80)
+            ch = L'#';
+    }
     return clean.empty() ? L"unknown" : clean;
 }
 
