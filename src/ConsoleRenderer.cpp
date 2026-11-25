@@ -63,16 +63,13 @@ std::wstring ConsoleRenderer::Truncate(const std::wstring& s, size_t max) {
     if (max <= 3) return s.substr(0, max);
     return s.substr(0, max - 3) + L"...";
 }
-
 void ConsoleRenderer::Update(const ViewModel& view) {
-    // Determine usable width (cap at 120 so we stay readable)
     CONSOLE_SCREEN_BUFFER_INFO csbi{};
     SHORT width = 120;
     if (GetConsoleScreenBufferInfo(console_, &csbi))
         width = std::min<SHORT>(csbi.dwSize.X, 120);
 
     SHORT row = 0;
-
     auto writePadded = [&](const std::wstring& line) {
         WriteAt(0, row++, PadToWidth(line, static_cast<size_t>(width)));
     };
@@ -85,9 +82,22 @@ void ConsoleRenderer::Update(const ViewModel& view) {
     writePadded(L"PID     Process             R_IOPS  W_IOPS  Read/s     Write/s    Total/s");
     writePadded(L"-------------------------------------------------------------------------");
 
+    // Filter for display only
+    std::vector<RateView> displayRows;
+    displayRows.reserve(view.Rows.size());
+    for (const auto& r : view.Rows) {
+        // RateView does not currently carry Terminated; we need it.
+        // See note below.
+        displayRows.push_back(r);
+    }
+
     const size_t maxRows = 50;
-    for (size_t i = 0; i < view.Rows.size() && i < maxRows; ++i) {
-        const auto& r = view.Rows[i];
+    size_t shown = 0;
+    for (const auto& r : displayRows) {
+        if (shown >= maxRows) break;
+        if ( !showTerminated_ && r.Terminated )
+            continue;
+
         std::wostringstream line;
         line << std::setw(8) << r.Identity.Pid << L" "
              << std::left << std::setw(20) << Truncate(r.ProcessName, 20) << L" "
@@ -97,10 +107,9 @@ void ConsoleRenderer::Update(const ViewModel& view) {
              << std::setw(10) << FormatRate(r.WritePerSecond) << L" "
              << FormatRate(r.ReadPerSecond + r.WritePerSecond);
         writePadded(line.str());
+        ++shown;
     }
-
-    // Blank out any remaining rows that previously held data
-    for (size_t i = view.Rows.size(); i < maxRows; ++i)
+    for (; shown < maxRows; ++shown)
         writePadded(L"");
 
     writePadded(L"");
@@ -109,11 +118,11 @@ void ConsoleRenderer::Update(const ViewModel& view) {
            << L" | DecodeErr: " << view.Diags.SchemaDecodeFailures.load()
            << L" | UnknownFO: " << view.Diags.UnknownFileObjects.load()
            << L" | Ev/s: " << view.EventsPerSec
-           << L" | Session: " << (view.Owned ? L"Owned" : L"Attached");
+           << L" | Session: " << (view.Owned ? L"Owned" : L"Attached")
+           << L" | Terminated: " << (showTerminated_ ? L"shown" : L"hidden");
     writePadded(footer.str());
-    writePadded(L"Hotkeys: r Read/s  w Write/s  i IOPS  t Total/s  p PID  q Quit");
+    writePadded(L"Hotkeys: r Read/s  w Write/s  i IOPS  t Total/s  p PID  h Hide/Show exited  q Quit");
 
-    // Park the cursor below the last line so it doesn't sit in the middle of the output
     SetConsoleCursorPosition(console_, COORD{ 0, row });
 }
 
@@ -127,6 +136,8 @@ void ConsoleRenderer::HandleInput() {
             wchar_t ch = rec.Event.KeyEvent.uChar.UnicodeChar;
             if (ch == L'q' || ch == L'Q')
                 quit_ = true;
+            else if ( ch == L'h' || ch == L'H' )
+                showTerminated_ = !showTerminated_;
         }
     }
 }

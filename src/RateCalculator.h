@@ -14,6 +14,7 @@ struct RateView {
     uint32_t ReadIOPS = 0;
     uint32_t WriteIOPS = 0;
     uint64_t TotalBytesLast = 0;
+    bool Terminated = false; 
 };
 
 class RateCalculator {

@@ -30,6 +30,7 @@ void RateCalculator::Calculate(const std::vector<ProcessStatsEntry>& current,
         view.ReadIOPS  = cur.ReadIOPSLastSecond;
         view.WriteIOPS = cur.WriteIOPSLastSecond;
         view.TotalBytesLast = cur.ReadBytesTotal + cur.WriteBytesTotal;
+        view.Terminated = cur.Terminated;
 
         outViews.push_back(view);
     }
