@@ -1,0 +1,4 @@
+#pragma once
+
+#define VOLUMEIO_VERSION "@GIT_VERSION@"
+#define VOLUMEIO_COMMIT  "@GIT_COMMIT@"

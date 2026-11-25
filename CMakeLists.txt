@@ -58,5 +58,33 @@ if(MSVC)
     target_link_options(volumeio_tests PRIVATE "/WHOLEARCHIVE:Catch2Main.lib")
 endif()
 
+# Generate version header from git
+find_package(Git QUIET)
+if(GIT_FOUND)
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} describe --tags --always --dirty
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE GIT_VERSION
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE GIT_COMMIT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+else()
+    set(GIT_VERSION "unknown")
+    set(GIT_COMMIT "unknown")
+endif()
 
+configure_file(
+    ${CMAKE_SOURCE_DIR}/src/Version.h.in
+    ${CMAKE_BINARY_DIR}/generated/Version.h
+    @ONLY
+)
+
+target_include_directories(volumeio PRIVATE ${CMAKE_BINARY_DIR}/generated)
 

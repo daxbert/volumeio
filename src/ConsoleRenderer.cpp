@@ -1,5 +1,6 @@
 #include "ConsoleRenderer.h"
 #include "ProcessStats.h"
+#include "Version.h"
 #include <iostream>
 #include <sstream>
 #include <iomanip>
@@ -157,8 +158,7 @@ void ConsoleRenderer::Update(const ViewModel& view) {
     auto writePadded = [&](const std::wstring& line) {
         WriteAt(0, row++, PadToWidth(line, static_cast<size_t>(width)));
     };
-
-    writePadded(L"Volume: " + view.Volume);
+    writePadded(L"Volume: " + view.Volume + L"            VolumeIO v[" VOLUMEIO_VERSION L" " VOLUMEIO_COMMIT L"]");
     writePadded(L"Lost Events: " + std::to_wstring(view.Diags.LostEvents.load()));
     writePadded(L"Lost Buffers: " + std::to_wstring(view.Diags.LostBuffers.load()));
     writePadded(L"");

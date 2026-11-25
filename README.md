@@ -14,6 +14,63 @@ Real-time per-process file I/O monitor for a specific Windows volume, built on t
 - Partial console updates (no full-screen clears)
 - Diagnostic counters (lost events, decode failures, unknown FileObjects, etc.)
 
+## Sample
+
+```console
+Volume: C:
+Lost Events: 0
+Lost Buffers: 0
+
+PID      Process                 R_Ops    W_Ops         Read        Write        Total
+--------------------------------------------------------------------------------------
+    4080 FastBootService.exe       231        0      26.6 KB          0 B      26.6 KB
+    1036 [1036]                      6        0      24.0 KB          0 B      24.0 KB
+    2396 NVDisplay.Contain...        0       68          0 B     235.2 MB     235.2 MB
+    2688 svchost.exe                 0        2          0 B      16.7 KB      16.7 KB
+    3032 svchost.exe                 9        0       1002 B          0 B       1002 B
+    3892 svchost.exe                23       15     280.0 KB      68.0 KB     348.0 KB
+    4528 SearchIndexer.exe         126        0       3.0 KB          0 B       3.0 KB
+    5100 WmiPrvSE.exe                0        0          0 B          0 B          0 B
+    8484 neuroserver.exe             0        2          0 B          2 B          2 B
+    8832 nvcontainer.exe             2        0       7.4 KB          0 B       7.4 KB
+    9148 svchost.exe                60        0       1.1 MB          0 B       1.1 MB
+    9840 explorer.exe               22        4     448.0 KB     573.2 KB    1021.2 KB
+   10360 svchost.exe                12        0       5.9 KB          0 B       5.9 KB
+   15760 GoogleDriveFS.exe          36        2     210.1 KB        137 B     210.2 KB
+   18280 SearchProtocolHos...       13        0       1.1 MB          0 B       1.1 MB
+   18528 [18528]                   198        0       4.6 KB          0 B       4.6 KB
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+
+Processes: 16 | DecodeErr: 361 | UnknownFO: 25633 | Ev/s: 105 | Session: Owned
+Terminated: shown | Mode: cumulative
+Sort By: r Reads w Write i Iops t Total p PID
+Misc:    h hide exited  c Real Time    q Quit
+```
 ## Requirements
 
 - Windows 10/11 x64
