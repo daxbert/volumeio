@@ -100,10 +100,24 @@ int wmain(int argc, wchar_t* argv[]) {
             std::vector<RateView> views;
             RateCalculator::Calculate(snapshot, previousSnapshot, delta <= 0 ? 1.0 : delta, views);
 
-            // Sort top 50 (simplified; full sort by Total/s etc. according to hotkey)
-            std::sort(views.begin(), views.end(), [](const RateView& a, const RateView& b) {
-                return (a.ReadPerSecond + a.WritePerSecond) > (b.ReadPerSecond + b.WritePerSecond);
+            // Sort according to the current hotkey
+            SortKey key = renderer.GetSortKey();
+            std::sort(views.begin(), views.end(), [key](const RateView& a, const RateView& b) {
+                switch (key) {
+                case SortKey::Read:
+                    return a.ReadPerSecond > b.ReadPerSecond;
+                case SortKey::Write:
+                    return a.WritePerSecond > b.WritePerSecond;
+                case SortKey::IOPS:
+                    return (a.ReadIOPS + a.WriteIOPS) > (b.ReadIOPS + b.WriteIOPS);
+                case SortKey::Pid:
+                    return a.Identity.Pid < b.Identity.Pid;
+                case SortKey::Total:
+                default:
+                    return (a.ReadPerSecond + a.WritePerSecond) > (b.ReadPerSecond + b.WritePerSecond);
+                }
             });
+
             if (views.size() > 50) views.resize(50);
 
             ViewModel vm{std::wstring(1, drive) + L":", views, diags, session.IsOwned(), session.GetEnableFlags(), diags.EventsThisSecond.load()};

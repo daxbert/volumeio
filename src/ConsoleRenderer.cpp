@@ -63,6 +63,33 @@ std::wstring ConsoleRenderer::Truncate(const std::wstring& s, size_t max) {
     if (max <= 3) return s.substr(0, max);
     return s.substr(0, max - 3) + L"...";
 }
+
+void ConsoleRenderer::HandleInput() {
+    INPUT_RECORD rec{};
+    DWORD read = 0;
+    HANDLE input = GetStdHandle(STD_INPUT_HANDLE);
+    if (PeekConsoleInputW(input, &rec, 1, &read) && read > 0) {
+        ReadConsoleInputW(input, &rec, 1, &read);
+        if (rec.EventType == KEY_EVENT && rec.Event.KeyEvent.bKeyDown) {
+            wchar_t ch = rec.Event.KeyEvent.uChar.UnicodeChar;
+            if (ch == L'q' || ch == L'Q')
+                quit_ = true;
+            else if (ch == L'h' || ch == L'H')
+                showTerminated_ = !showTerminated_;
+            else if (ch == L'r' || ch == L'R')
+                sortKey_ = SortKey::Read;
+            else if (ch == L'w' || ch == L'W')
+                sortKey_ = SortKey::Write;
+            else if (ch == L'i' || ch == L'I')
+                sortKey_ = SortKey::IOPS;
+            else if (ch == L't' || ch == L'T')
+                sortKey_ = SortKey::Total;
+            else if (ch == L'p' || ch == L'P')
+                sortKey_ = SortKey::Pid;
+        }
+    }
+}
+
 void ConsoleRenderer::Update(const ViewModel& view) {
     CONSOLE_SCREEN_BUFFER_INFO csbi{};
     SHORT width = 120;
@@ -82,20 +109,15 @@ void ConsoleRenderer::Update(const ViewModel& view) {
     writePadded(L"PID     Process             R_IOPS  W_IOPS  Read/s     Write/s    Total/s");
     writePadded(L"-------------------------------------------------------------------------");
 
-    // Filter for display only
-    std::vector<RateView> displayRows;
-    displayRows.reserve(view.Rows.size());
-    for (const auto& r : view.Rows) {
-        // RateView does not currently carry Terminated; we need it.
-        // See note below.
-        displayRows.push_back(r);
-    }
-
     const size_t maxRows = 50;
     size_t shown = 0;
-    for (const auto& r : displayRows) {
-        if (shown >= maxRows) break;
-        if ( !showTerminated_ && r.Terminated )
+    size_t visibleCount = 0;
+
+    for (const auto& r : view.Rows) {
+        if (!showTerminated_ && r.Terminated)
+            continue;
+        ++visibleCount;
+        if (shown >= maxRows)
             continue;
 
         std::wostringstream line;
@@ -112,14 +134,6 @@ void ConsoleRenderer::Update(const ViewModel& view) {
     for (; shown < maxRows; ++shown)
         writePadded(L"");
 
-    // Count only rows that will actually be shown
-    size_t visibleCount = 0;
-    for (const auto& r : view.Rows) {
-        if (!showTerminated_ && r.Terminated)
-            continue;
-        ++visibleCount;
-    }
-
     writePadded(L"");
     std::wostringstream footer;
     footer << L"Processes: " << visibleCount
@@ -132,22 +146,6 @@ void ConsoleRenderer::Update(const ViewModel& view) {
     writePadded(L"Hotkeys: r Read/s  w Write/s  i IOPS  t Total/s  p PID  h Hide/Show exited  q Quit");
 
     SetConsoleCursorPosition(console_, COORD{ 0, row });
-}
-
-void ConsoleRenderer::HandleInput() {
-    INPUT_RECORD rec{};
-    DWORD read = 0;
-    HANDLE input = GetStdHandle(STD_INPUT_HANDLE);
-    if (PeekConsoleInputW(input, &rec, 1, &read) && read > 0) {
-        ReadConsoleInputW(input, &rec, 1, &read);
-        if (rec.EventType == KEY_EVENT && rec.Event.KeyEvent.bKeyDown) {
-            wchar_t ch = rec.Event.KeyEvent.uChar.UnicodeChar;
-            if (ch == L'q' || ch == L'Q')
-                quit_ = true;
-            else if ( ch == L'h' || ch == L'H' )
-                showTerminated_ = !showTerminated_;
-        }
-    }
 }
 
 

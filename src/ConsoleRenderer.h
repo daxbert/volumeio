@@ -14,12 +14,21 @@ struct ViewModel {
     uint64_t EventsPerSec = 0;
 };
 
+enum class SortKey {
+    Total,      // default
+    Read,
+    Write,
+    IOPS,
+    Pid
+};
+
 class ConsoleRenderer {
 public:
     ConsoleRenderer();
     void Update(const ViewModel& view);
     void HandleInput();
     bool ShouldQuit() const { return quit_; }
+    SortKey GetSortKey() const { return sortKey_; }
 
 private:
     void WriteAt(SHORT x, SHORT y, const std::wstring& text);
@@ -28,7 +37,9 @@ private:
 
     HANDLE console_ = INVALID_HANDLE_VALUE;
     bool quit_ = false;
-    bool showTerminated_ = false; // default = hidden
+    bool showTerminated_ = false;
+    SortKey sortKey_ = SortKey::Total;
 };
+
 
 
