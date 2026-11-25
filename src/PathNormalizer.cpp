@@ -3,12 +3,12 @@
 #include <cwctype>
 
 std::wstring NormalizePath(const std::wstring& path) {
-    if (path.empty()) return {};
+    if (path.empty())
+        return {};
 
     std::wstring result;
     result.reserve(path.size());
 
-    // Uppercase + replace / with backslash
     for (wchar_t ch : path) {
         if (ch == L'/')
             result.push_back(L'\\');
@@ -16,52 +16,42 @@ std::wstring NormalizePath(const std::wstring& path) {
             result.push_back(static_cast<wchar_t>(towupper(ch)));
     }
 
-    // Collapse duplicate separators
     std::wstring collapsed;
     collapsed.reserve(result.size());
-    bool lastSep = false;
+    bool lastWasSep = false;
     for (wchar_t ch : result) {
         if (ch == L'\\') {
-            if (!lastSep) {
+            if (!lastWasSep) {
                 collapsed.push_back(ch);
-                lastSep = true;
+                lastWasSep = true;
             }
         } else {
             collapsed.push_back(ch);
-            lastSep = false;
+            lastWasSep = false;
         }
     }
 
-    // Strip trailing separator except for volume roots
+    // Preserve trailing separator only for volume roots
     if (collapsed.size() > 1 && collapsed.back() == L'\\') {
-        bool isRoot = false;
+        bool preserve = false;
 
-        // Classic NT volume root: \DEVICE\HARDDISKVOLUMEn\ 
         if (collapsed.rfind(L"\\DEVICE\\HARDDISKVOLUME", 0) == 0) {
-            size_t lastSep = collapsed.rfind(L'\\');
-            if (lastSep != std::wstring::npos) {
-                std::wstring withoutTrailing = collapsed.substr(0, lastSep);
-                // Volume root has no additional path components after the volume name
-                if (withoutTrailing.find(L'\\', 1) == std::wstring::npos ||
-                    withoutTrailing.rfind(L"\\DEVICE\\HARDDISKVOLUME") == 0) {
-                    size_t volPos = withoutTrailing.find(L'\\', 1);
-                    if (volPos == std::wstring::npos)
-                        isRoot = true;
-                }
+            size_t last = collapsed.rfind(L'\\');
+            if (last != std::wstring::npos) {
+                std::wstring without = collapsed.substr(0, last);
+                if (without.find(L'\\', 1) == std::wstring::npos)
+                    preserve = true;
             }
-        }
-        // Volume GUID root: \\?\VOLUME{...}\
-        else if (collapsed.rfind(L"\\\\?\\VOLUME{", 0) == 0) {
+        } else if (collapsed.rfind(L"\\\\?\\VOLUME{", 0) == 0) {
             size_t brace = collapsed.find(L'}');
             if (brace != std::wstring::npos &&
                 brace + 1 < collapsed.size() &&
                 collapsed[brace + 1] == L'\\' &&
-                collapsed.find(L'\\', brace + 2) == std::wstring::npos) {
-                isRoot = true;
-            }
+                collapsed.find(L'\\', brace + 2) == std::wstring::npos)
+                preserve = true;
         }
 
-        if (!isRoot)
+        if (!preserve)
             collapsed.pop_back();
     }
     return collapsed;
@@ -79,9 +69,7 @@ bool MatchesTargetVolume(const std::wstring& normalizedPath, const std::wstring&
     if (path.compare(0, target.size(), target) != 0)
         return false;
 
-    if (path.size() == target.size())
-        return true;
-    return path[target.size()] == L'\\';
+    return path.size() == target.size() || path[target.size()] == L'\\';
 }
 
 

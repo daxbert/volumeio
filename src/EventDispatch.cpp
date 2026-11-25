@@ -65,7 +65,7 @@ void EventDispatch::HandleReadWrite(PEVENT_RECORD event, PTRACE_EVENT_INFO info,
     DWORD pid = event->EventHeader.ProcessId;
     FILETIME ct{}; // synthetic or from process map; simplified
     ProcessIdentity id{pid, ct};
-    if (files_.OnReadWrite(*fo, *size, isWrite, pid, ct)) {
+    if (files_.OnReadWrite(*fo, *size, isWrite)) {
         stats_.AddIO(id, *size, isWrite);
     }
 }

@@ -7,6 +7,8 @@
 #include <thread>
 #include <memory>
 
+ULONG WINAPI BufferCallback(PEVENT_TRACE_LOGFILE logfile);
+
 class EtwSession {
 public:
     using EventCallback = std::function<void(PEVENT_RECORD)>;
@@ -23,7 +25,6 @@ public:
     ULONG GetEnableFlags() const { return enableFlags_; }
 
 private:
-    static ULONG WINAPI BufferCallback(PEVENT_TRACE_LOGFILE logfile);
     static void WINAPI EventCallbackStatic(PEVENT_RECORD event);
 
     DiagnosticCounters& diags_;

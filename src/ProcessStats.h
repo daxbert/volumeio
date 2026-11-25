@@ -1,10 +1,11 @@
 #pragma once
 #include "ProcessIdentity.h"
 #include "Diagnostics.h"
-#include <unordered_map>
+#include <map>
 #include <shared_mutex>
 #include <string>
 #include <optional>
+#include <vector>
 
 struct ProcessStatsEntry {
     ProcessIdentity Identity;
@@ -27,16 +28,15 @@ public:
     void OnProcessStart(DWORD pid, const std::wstring& imageFileName, FILETIME createTime);
     void OnProcessEnd(DWORD pid);
     void AddIO(const ProcessIdentity& id, uint64_t bytes, bool isWrite);
-    void UpdateRates(double deltaSeconds);
     std::vector<ProcessStatsEntry> GetSnapshot() const;
-
-    // For tests
     std::optional<std::wstring> GetName(const ProcessIdentity& id) const;
 
 private:
     std::wstring ResolveName(DWORD pid);
     DiagnosticCounters& diags_;
     mutable std::shared_mutex mutex_;
-    std::unordered_map<ProcessIdentity, ProcessStatsEntry> map_;
+    std::map<ProcessIdentity, ProcessStatsEntry> map_;
     static constexpr size_t MaxEntries = 100000;
 };
+
+

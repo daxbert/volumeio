@@ -16,7 +16,7 @@ EtwSession::EtwSession(DiagnosticCounters& diags) : diags_(diags) {}
 
 EtwSession::~EtwSession() { Stop(); }
 
-static ULONG WINAPI EtwSession::BufferCallback(PEVENT_TRACE_LOGFILE logfile) {
+ULONG WINAPI BufferCallback(PEVENT_TRACE_LOGFILE logfile) {
     // Lost events/buffers reported via session query or here if available
     (void)logfile;
     return TRUE;

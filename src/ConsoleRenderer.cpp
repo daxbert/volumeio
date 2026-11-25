@@ -36,18 +36,19 @@ std::wstring ConsoleRenderer::Truncate(const std::wstring& s, size_t max) {
 }
 
 void ConsoleRenderer::Update(const ViewModel& view) {
-    // Partial update: rewrite header, rows, footer without full clear
     SHORT row = 0;
-    WriteAt(0, row++, L"Volume: " + view.Volume + L"          ");
-    WriteAt(0, row++, L"Lost Events: " + std::to_wstring(view.Diags.LostEvents.load()) + L"   ");
-    WriteAt(0, row++, L"Lost Buffers: " + std::to_wstring(view.Diags.LostBuffers.load()) + L"   ");
+    WriteAt(0, row++, L"Volume: " + view.Volume);
+    WriteAt(0, row++, L"Lost Events: " + std::to_wstring(view.Diags.LostEvents.load()));
+    WriteAt(0, row++, L"Lost Buffers: " + std::to_wstring(view.Diags.LostBuffers.load()));
     row++;
 
-    WriteAt(0, row++, L"PID     Process             R_IOPS  W_IOPS  Read/s     Write/s    Total/s");
-    WriteAt(0, row++, L"-------------------------------------------------------------------------");
+    WriteAt(0, row++, L"PID     Process             R_IOPS  W_IOPS  Read/s     Write/s    Total
+/s");
+    WriteAt(0, row++, L"-----------------------------------------------------------------------
+--");
 
-    size_t maxRows = 50;
-    for (size_t i = 0; i < std::min(view.Rows.size(), maxRows); ++i) {
+    const size_t maxRows = 50;
+    for (size_t i = 0; i < view.Rows.size() && i < maxRows; ++i) {
         const auto& r = view.Rows[i];
         std::wostringstream line;
         line << std::setw(8) << r.Identity.Pid << L" "
@@ -57,24 +58,21 @@ void ConsoleRenderer::Update(const ViewModel& view) {
              << std::setw(10) << FormatRate(r.ReadPerSecond) << L" "
              << std::setw(10) << FormatRate(r.WritePerSecond) << L" "
              << FormatRate(r.ReadPerSecond + r.WritePerSecond);
-        WriteAt(0, row++, line.str());
+        WriteAt(0, static_cast<SHORT>(row++), line.str());
     }
-    // Clear remaining rows
-    for (size_t i = view.Rows.size(); i < maxRows; ++i) {
-        WriteAt(0, row++, std::wstring(80, L' '));
-    }
+    for (size_t i = view.Rows.size(); i < maxRows; ++i)
+        WriteAt(0, static_cast<SHORT>(row++), std::wstring(80, L' '));
 
-    // Footer
     row += 2;
     std::wostringstream footer;
     footer << L"Processes: " << view.Rows.size()
            << L" | DecodeErr: " << view.Diags.SchemaDecodeFailures.load()
            << L" | UnknownFO: " << view.Diags.UnknownFileObjects.load()
            << L" | Ev/s: " << view.EventsPerSec
-           << L" | Session: " << (view.Owned ? L"Owned" : L"Attached")
-           << L" | Flags: 0x" << std::hex << view.EnableFlags;
-    WriteAt(0, row++, footer.str());
-    WriteAt(0, row++, L"Hotkeys: r Read/s  w Write/s  i IOPS  t Total/s  p PID  q Quit");
+           << L" | Session: " << (view.Owned ? L"Owned" : L"Attached");
+    WriteAt(0, static_cast<SHORT>(row++), footer.str());
+    WriteAt(0, static_cast<SHORT>(row++), L"Hotkeys: r Read/s  w Write/s  i IOPS  t Total/s  p
+PID  q Quit");
 }
 
 void ConsoleRenderer::HandleInput() {

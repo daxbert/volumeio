@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "EtwSession.h"
 #include "EventDispatch.h"
 #include "FileObjectMap.h"
