@@ -14,8 +14,9 @@ void VolumeMapper::RefreshMappingsUnlocked() {
     for (const wchar_t* p = drives; *p; p += wcslen(p) + 1) {
         if (p[1] == L':') {
             wchar_t letter = static_cast<wchar_t>(towupper(p[0]));
+            wchar_t dosName[3] = { letter, L':', L'\0' };
             wchar_t device[MAX_PATH]{};
-            if (QueryDosDeviceW(std::wstring(1, letter).c_str(), device, MAX_PATH)) {
+            if (QueryDosDeviceW(dosName, device, MAX_PATH)) {
                 std::wstring nt(device);
                 driveToNt_[letter] = nt;
                 ntToDrive_[nt] = letter;
