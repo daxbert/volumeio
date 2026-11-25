@@ -64,10 +64,13 @@ void ProcessStats::AddIO(const ProcessIdentity& id, uint64_t bytes, bool isWrite
     if (entry.ProcessName.empty())
         entry.ProcessName = ResolveName(id.Pid);
 
-    if (isWrite)
+    if (isWrite) {
         entry.WriteBytesTotal += bytes;
-    else
+        entry.WriteOpsTotal ++;
+    } else {
         entry.ReadBytesTotal += bytes;
+        entry.ReadOpsTotal ++;
+    }
     entry.LastActivityTick = GetTickCount64();
 }
 

@@ -76,6 +76,8 @@ void ConsoleRenderer::HandleInput() {
                 quit_ = true;
             else if (ch == L'h' || ch == L'H')
                 showTerminated_ = !showTerminated_;
+            else if (ch == L'c' || ch == L'C')
+                cumulativeMode_ = !cumulativeMode_;
             else if (ch == L'r' || ch == L'R')
                 sortKey_ = SortKey::Read;
             else if (ch == L'w' || ch == L'W')
@@ -106,7 +108,11 @@ void ConsoleRenderer::Update(const ViewModel& view) {
     writePadded(L"Lost Buffers: " + std::to_wstring(view.Diags.LostBuffers.load()));
     writePadded(L"");
 
-    writePadded(L"PID     Process             R_IOPS  W_IOPS  Read/s     Write/s    Total/s");
+    if (cumulativeMode_) {
+        writePadded(L"PID     Process             R_Ops   W_Ops   Read       Write      Total");
+    } else {
+        writePadded(L"PID     Process             R_IOPS  W_IOPS  Read/s     Write/s    Total/s");
+    }
     writePadded(L"-------------------------------------------------------------------------");
 
     const size_t maxRows = 50;
@@ -122,12 +128,21 @@ void ConsoleRenderer::Update(const ViewModel& view) {
 
         std::wostringstream line;
         line << std::setw(8) << r.Identity.Pid << L" "
-             << std::left << std::setw(20) << Truncate(r.ProcessName, 20) << L" "
-             << std::setw(7) << r.ReadIOPS << L" "
-             << std::setw(7) << r.WriteIOPS << L" "
-             << std::setw(10) << FormatRate(r.ReadPerSecond) << L" "
-             << std::setw(10) << FormatRate(r.WritePerSecond) << L" "
-             << FormatRate(r.ReadPerSecond + r.WritePerSecond);
+             << std::left << std::setw(20) << Truncate(r.ProcessName, 20) << L" ";
+
+        if (cumulativeMode_) {
+            line << std::setw(7) << r.ReadOpsTotal << L" "
+                 << std::setw(7) << r.WriteOpsTotal << L" "
+                 << std::setw(10) << FormatRate(static_cast<double>(r.ReadBytesTotal)) << L" "
+                 << std::setw(10) << FormatRate(static_cast<double>(r.WriteBytesTotal)) << L" "
+                 << FormatRate(static_cast<double>(r.ReadBytesTotal + r.WriteBytesTotal));
+        } else {
+            line << std::setw(7) << r.ReadIOPS << L" "
+                 << std::setw(7) << r.WriteIOPS << L" "
+                 << std::setw(10) << FormatRate(r.ReadPerSecond) << L" "
+                 << std::setw(10) << FormatRate(r.WritePerSecond) << L" "
+                 << FormatRate(r.ReadPerSecond + r.WritePerSecond);
+        }
         writePadded(line.str());
         ++shown;
     }
@@ -141,9 +156,10 @@ void ConsoleRenderer::Update(const ViewModel& view) {
            << L" | UnknownFO: " << view.Diags.UnknownFileObjects.load()
            << L" | Ev/s: " << view.EventsPerSec
            << L" | Session: " << (view.Owned ? L"Owned" : L"Attached")
-           << L" | Terminated: " << (showTerminated_ ? L"shown" : L"hidden");
+           << L" | Terminated: " << (showTerminated_ ? L"shown" : L"hidden")
+           << L" | Mode: " << (cumulativeMode_ ? L"cumulative" : L"real-time");
     writePadded(footer.str());
-    writePadded(L"Hotkeys: r Read/s  w Write/s  i IOPS  t Total/s  p PID  h Hide/Show exited  q Quit");
+    writePadded(L"Hotkeys: r Read/s  w Write/s  i IOPS  t Total/s  p PID  h Hide/Show exited  c Cumulative  q Quit");
 
     SetConsoleCursorPosition(console_, COORD{ 0, row });
 }

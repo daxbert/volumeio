@@ -1,5 +1,5 @@
 #include "RateCalculator.h"
-#include "ProcessStats.h"          // now safe – full type is available
+#include "ProcessStats.h"
 #include <map>
 
 void RateCalculator::Calculate(const std::vector<ProcessStatsEntry>& current,
@@ -20,6 +20,7 @@ void RateCalculator::Calculate(const std::vector<ProcessStatsEntry>& current,
         RateView view;
         view.Identity = cur.Identity;
         view.ProcessName = cur.ProcessName.empty() ? L"unknown" : cur.ProcessName;
+        view.Terminated = cur.Terminated;
 
         auto it = prevMap.find(cur.Identity);
         uint64_t prevRead  = (it != prevMap.end()) ? it->second.ReadBytesTotal  : 0;
@@ -29,11 +30,17 @@ void RateCalculator::Calculate(const std::vector<ProcessStatsEntry>& current,
         view.WritePerSecond = static_cast<double>(cur.WriteBytesTotal - prevWrite) / deltaSeconds;
         view.ReadIOPS  = cur.ReadIOPSLastSecond;
         view.WriteIOPS = cur.WriteIOPSLastSecond;
-        view.TotalBytesLast = cur.ReadBytesTotal + cur.WriteBytesTotal;
-        view.Terminated = cur.Terminated;
+
+        // Cumulative values
+        view.ReadBytesTotal  = cur.ReadBytesTotal;
+        view.WriteBytesTotal = cur.WriteBytesTotal;
+        view.ReadOpsTotal    = cur.ReadOpsTotal;
+        view.WriteOpsTotal   = cur.WriteOpsTotal;
+        view.TotalBytesLast  = cur.ReadBytesTotal + cur.WriteBytesTotal;
 
         outViews.push_back(view);
     }
     previous = current;
 }
+
 

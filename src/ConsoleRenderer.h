@@ -38,6 +38,7 @@ private:
     HANDLE console_ = INVALID_HANDLE_VALUE;
     bool quit_ = false;
     bool showTerminated_ = false;
+    bool cumulativeMode_ = false;
     SortKey sortKey_ = SortKey::Total;
 };
 

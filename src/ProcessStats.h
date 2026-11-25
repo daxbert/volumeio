@@ -12,6 +12,8 @@ struct ProcessStatsEntry {
     std::wstring ProcessName;
     uint64_t ReadBytesTotal = 0;
     uint64_t WriteBytesTotal = 0;
+    uint64_t ReadOpsTotal = 0;
+    uint64_t WriteOpsTotal = 0;
     uint64_t ReadBytesLastSecond = 0;
     uint64_t WriteBytesLastSecond = 0;
     uint32_t ReadIOPSLastSecond = 0;
